@@ -197,7 +197,7 @@ def get_or_create_sheet(client, spreadsheet_name="Travel Planner Dec 2025"):
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(title="Plans", rows=1000, cols=10)
         # Add headers
-        headers = ['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created']
+        headers = ['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created']
         worksheet.append_row(headers)
     
     return worksheet
@@ -210,10 +210,10 @@ def load_data(worksheet):
             df = pd.DataFrame(data)
             df['Date'] = pd.to_datetime(df['Date']).dt.date
             return df
-        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created'])
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created'])
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created'])
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created'])
 
 def add_trip(worksheet, trip_data):
     """Add new trip to Google Sheets"""
@@ -448,7 +448,6 @@ def main():
             
             with col2:
                 category = st.selectbox("Category *", options=list(CATEGORIES.keys()))
-                priority = st.selectbox("Priority", options=["Low", "Medium", "High"], index=1)
                 notes = st.text_area("Notes", placeholder="Special details or reminders...")
             
             submitted = st.form_submit_button("✨ Add Plan", use_container_width=True)
@@ -464,7 +463,6 @@ def main():
                         location,
                         category,
                         notes,
-                        priority,
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     ]
                     
@@ -501,7 +499,6 @@ def main():
                     
                     with col2:
                         edit_category = st.selectbox("Category *", options=list(CATEGORIES.keys()), index=list(CATEGORIES.keys()).index(trip['Category']))
-                        edit_priority = st.selectbox("Priority", options=["Low", "Medium", "High"], index=["Low", "Medium", "High"].index(trip['Priority']))
                         edit_notes = st.text_area("Notes", value=trip['Notes'])
                     
                     update_submitted = st.form_submit_button("💾 Update Plan", use_container_width=True)
@@ -515,7 +512,6 @@ def main():
                             edit_location,
                             edit_category,
                             edit_notes,
-                            edit_priority,
                             trip['Created']
                         ]
                         
