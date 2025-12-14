@@ -56,60 +56,68 @@ st.markdown(f"""
         background: linear-gradient(135deg, rgba(236,72,153,0.65) 0%, rgba(139,92,246,0.65) 100%) {' , ' if bg2 else ''} url('{bg2}');
         background-size: cover;
         padding: 2rem;
-        border-radius: 1rem;
-        color: #000 !important;
-        margin-bottom: 2rem;
-    }}
-
-    .stat-card {{
-        background: rgba(255,255,255,0.9);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        text-align: center;
-    }}
-
-    .trip-card {{
-        background: rgba(255,255,255,0.95);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid #ec4899;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }}
-
-    .category-badge {{
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        margin-right: 0.5rem;
-    }}
-</style>
-""", unsafe_allow_html=True)
-
-# Insert a fixed full-screen <img> behind the app for pixel-perfect background
-if bg1:
-    st.markdown(
-        f"""
+        st.markdown(f"""
         <style>
-            #page-bg-img {{
-                position: fixed;
-                inset: 0;
-                z-index: -9999;
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-                pointer-events: none;
-                opacity: 1;
-            }}
-            /* ensure the app content sits above the image */
+            /* Apply the page background to Streamlit's app container */
             section[data-testid="stAppViewContainer"] {{
-                position: relative;
-                z-index: 0;
+                {'background-image: url("' + bg1 + '");' if bg1 else ''}
+                background-size: contain;
+                background-attachment: fixed;
+                background-position: center;
+                background-repeat: no-repeat;
+            }}
+
+            /* Make main content area translucent so background is visible */
+            .block-container {{
+                background: {content_bg} !important;
+                padding-top: 1rem;
+                border-radius: 0.5rem;
+            }}
+
+            .main-header {{
+                background: linear-gradient(135deg, rgba(236,72,153,0.65) 0%, rgba(139,92,246,0.65) 100%) {' , ' if bg2 else ''} url('{bg2}');
+                background-size: cover;
+                padding: 2rem;
+                border-radius: 1rem;
+                color: #000 !important;
+                margin-bottom: 2rem;
+            }}
+
+            .stat-card {{
+                background: rgba(255,255,255,0.9);
+                padding: 1.5rem;
+                border-radius: 1rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                text-align: center;
+            }}
+
+            .trip-card {{
+                background: rgba(255,255,255,0.95);
+                padding: 1.5rem;
+                border-radius: 1rem;
+                margin-bottom: 1rem;
+                border-left: 4px solid #ec4899;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            }}
+
+            .category-badge {{
+                display: inline-block;
+                padding: 0.25rem 0.75rem;
+                border-radius: 1rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                margin-right: 0.5rem;
             }}
         </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <style>
+        	[data-testid="stDecoration"] {
+        		background-image: linear-gradient(90deg, rgb(0, 102, 204), rgb(102, 255, 255));
+        	}
+        </style>""",
+        unsafe_allow_html=True)
         <img id="page-bg-img" src="{bg1}" alt="background" />
         """,
         unsafe_allow_html=True,
