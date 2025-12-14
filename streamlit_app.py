@@ -30,14 +30,15 @@ bg2 = _img_to_datauri(Path("picture2.jpg")) or ''
 
 # Always show the full image as the page background and make content
 # containers transparent so the image is visible.
-content_bg = 'transparent'
+content_bg = 'rgba(255,245,250,0.85)'
 
 st.markdown(f"""
 <style>
     /* Apply the page background to Streamlit's app container */
     section[data-testid="stAppViewContainer"] {{
+        background-color: #ffe6f4; /* soft pink page background */
         {'background-image: url("' + bg1 + '");' if bg1 else ''}
-        background-size: contain;
+        background-size: cover;
         background-attachment: fixed;
         background-position: center;
         background-repeat: no-repeat;
