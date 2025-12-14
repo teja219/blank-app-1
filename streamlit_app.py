@@ -4,6 +4,8 @@ from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime, date, timedelta
 import json
+import base64
+from pathlib import Path
 
 # Page configuration
 st.set_page_config(
@@ -12,58 +14,104 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS — cute pink / girly theme
-st.markdown("""
+# Custom CSS
+def _img_to_datauri(path: Path):
+    try:
+        with open(path, "rb") as f:
+            data = base64.b64encode(f.read()).decode()
+        ext = path.suffix.lstrip('.').lower()
+        return f"data:image/{ext};base64,{data}"
+    except Exception:
+        return None
+
+# prepare background images (use local files picture1.jpg and picture2.jpg if present)
+bg1 = _img_to_datauri(Path("picture1.jpg")) or ''
+bg2 = _img_to_datauri(Path("picture2.jpg")) or ''
+
+# Always show the full image as the page background and make content
+# containers transparent so the image is visible.
+content_bg = 'transparent'
+
+st.markdown(f"""
 <style>
-  :root{
-    --pink-1: #fff0f6;
-    --pink-2: #ffd6e7;
-    --accent: #f472b6;
-    --muted: #6b7280;
-  }
+    /* Apply the page background to Streamlit's app container */
+    section[data-testid="stAppViewContainer"] {{
+        {'background-image: url("' + bg1 + '");' if bg1 else ''}
+        background-size: contain;
+        background-attachment: fixed;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
 
-  /* Page background */
-  section[data-testid="stAppViewContainer"] {
-    background: linear-gradient(180deg, var(--pink-1) 0%, var(--pink-2) 100%);
-    background-attachment: fixed;
-    padding: 2rem 1rem;
-  }
+    /* Make main content area translucent so background is visible */
+    .block-container {{
+        background: {content_bg} !important;
+        padding-top: 1rem;
+        border-radius: 0.5rem;
+    }}
 
-  /* Main content container — slightly translucent to show pink hue */
-  .block-container {
-    background: rgba(255,245,250,0.9) !important;
-    border-radius: 16px;
-    padding: 1.25rem 1.5rem;
-    box-shadow: 0 8px 30px rgba(244,114,182,0.08);
-  }
+    .main-header {{
+        background: linear-gradient(135deg, rgba(236,72,153,0.65) 0%, rgba(139,92,246,0.65) 100%) {' , ' if bg2 else ''} url('{bg2}');
+        background-size: cover;
+        padding: 2rem;
+        border-radius: 1rem;
+        color: white;
+        margin-bottom: 2rem;
+    }}
 
-  /* Header with cute styling */
-  .main-header {
-    background: linear-gradient(90deg, rgba(244,114,182,0.95), rgba(236,72,153,0.95));
-    padding: 1rem 1.25rem;
-    border-radius: 14px;
-    color: white;
-    margin-bottom: 1.25rem;
-    display:flex;
-    align-items:center;
-    gap:1rem;
-  }
+    .stat-card {{
+        background: rgba(255,255,255,0.9);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+    }}
 
-  .main-header h1{ font-size: 1.75rem; margin:0; letter-spacing:0.6px }
-  .main-header p{ margin:0; opacity:0.95 }
+    .trip-card {{
+        background: rgba(255,255,255,0.95);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #ec4899;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }}
 
-  /* Cards */
-  .stat-card{ background: rgba(255,255,255,0.95); border-radius: 12px; padding:1rem }
-  .trip-card{ background: rgba(255,255,255,0.98); border-radius: 12px; padding:1rem; margin-bottom:0.75rem }
-
-  /* Category badges */
-  .category-badge{ border-radius: 999px; padding:0.25rem 0.6rem; font-weight:700; background: rgba(255,255,255,0.6) }
-
-  /* Make buttons a little rounder and pink */
-  button[title]{ border-radius:8px }
-
+    .category-badge {{
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+# Insert a fixed full-screen <img> behind the app for pixel-perfect background
+if bg1:
+    st.markdown(
+        f"""
+        <style>
+            #page-bg-img {{
+                position: fixed;
+                inset: 0;
+                z-index: -9999;
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                pointer-events: none;
+                opacity: 1;
+            }}
+            /* ensure the app content sits above the image */
+            section[data-testid="stAppViewContainer"] {{
+                position: relative;
+                z-index: 0;
+            }}
+        </style>
+        <img id="page-bg-img" src="{bg1}" alt="background" />
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Google Sheets Setup
 SCOPES = [
@@ -108,53 +156,87 @@ def connect_to_gsheet():
         # Allow secrets to be provided either as a parsed TOML table (dict)
         # or as a JSON string (common when pasting the whole JSON into
         # `.streamlit/secrets.toml`). If it's a string, parse it.
-        # Custom CSS (no local pictures used)
-        st.markdown("""
-        <style>
-            .block-container {
-                background: rgba(255,255,255,0.9) !important;
-                padding-top: 1rem;
-                border-radius: 0.5rem;
-            }
+        if isinstance(creds_dict, str):
+            try:
+                creds_dict = json.loads(creds_dict)
+            except Exception as ex:
+                # Provide a helpful error to the user in Streamlit UI
+                st.error("Could not parse gcp_service_account JSON from Streamlit secrets: %s" % ex)
+                return None
+        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        st.error(f"Error connecting to Google Sheets: {e}")
+        st.info("Please set up your Google Cloud service account credentials in Streamlit secrets.")
+        return None
 
-            .main-header {
-                background: linear-gradient(135deg, rgba(236,72,153,0.85) 0%, rgba(139,92,246,0.85) 100%);
-                padding: 2rem;
-                border-radius: 1rem;
-                color: white;
-                margin-bottom: 2rem;
-                display: flex;
-                align-items: center;
-                gap: 1rem;
-            }
+def get_or_create_sheet(client, spreadsheet_name="Travel Planner Dec 2025"):
+    """Get existing spreadsheet or create new one"""
+    try:
+        spreadsheet = client.open(spreadsheet_name)
+    except gspread.SpreadsheetNotFound:
+        try:
+            spreadsheet = client.create(spreadsheet_name)
+            # Share with your email (optional)
+            # spreadsheet.share('your-email@gmail.com', perm_type='user', role='writer')
+        except gspread.exceptions.APIError as e:
+            # Common cause: Drive storage quota exceeded for the account that
+            # would own the newly-created spreadsheet (often the service account).
+            st.error(f"Google Drive API error creating spreadsheet: {e}")
+            st.info(
+                "Common fixes:\n"
+                "- Free up Drive storage or purchase more storage for the account.\n"
+                "- Create the spreadsheet manually in a Google account that has available storage, then share it with the service account's email and set it in the app by name or ID.\n"
+                "- Use a different service account that has sufficient Drive quota."
+            )
+            return None
+    
+    try:
+        worksheet = spreadsheet.worksheet("Plans")
+    except gspread.WorksheetNotFound:
+        worksheet = spreadsheet.add_worksheet(title="Plans", rows=1000, cols=10)
+        # Add headers
+        headers = ['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created']
+        worksheet.append_row(headers)
+    
+    return worksheet
 
-            .stat-card {
-                background: rgba(255,255,255,0.9);
-                padding: 1.5rem;
-                border-radius: 1rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                text-align: center;
-            }
+def load_data(worksheet):
+    """Load all data from Google Sheets"""
+    try:
+        data = worksheet.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
+            df['Date'] = pd.to_datetime(df['Date']).dt.date
+            return df
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created'])
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Created'])
 
-            .trip-card {
-                background: rgba(255,255,255,0.95);
-                padding: 1.5rem;
-                border-radius: 1rem;
-                margin-bottom: 1rem;
-                border-left: 4px solid #ec4899;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            }
+def add_trip(worksheet, trip_data):
+    """Add new trip to Google Sheets"""
+    try:
+        # sanitize values to native Python types (avoid numpy/pandas types)
+        safe_row = [_sanitize_value(v) for v in trip_data]
+        worksheet.append_row(safe_row)
+        return True
+    except Exception as e:
+        st.error(f"Error adding trip: {e}")
+        return False
 
-            .category-badge {
-                display: inline-block;
-                padding: 0.25rem 0.75rem;
-                border-radius: 1rem;
-                font-size: 0.875rem;
-                font-weight: 600;
-                margin-right: 0.5rem;
-            }
-        </style>
-        """, unsafe_allow_html=True)
+def update_trip(worksheet, row_num, trip_data):
+    """Update existing trip in Google Sheets"""
+    try:
+        # row_num is 1-indexed, +1 for header
+        for i, value in enumerate(trip_data):
+            v = _sanitize_value(value)
+            worksheet.update_cell(row_num + 2, i + 1, v)
+        return True
+    except Exception as e:
+        st.error(f"Error updating trip: {e}")
+        return False
 
 def delete_trip(worksheet, row_num):
     """Delete trip from Google Sheets"""
@@ -191,15 +273,10 @@ def get_days_between():
 
 def main():
     # Header
-    # Animated GIF shown in header (external URL)
-    gif_url = "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"
-    st.markdown(f"""
+    st.markdown("""
     <div class="main-header">
-        <img src="{gif_url}" alt="cute couple" style="width:120px;height:120px;border-radius:12px;object-fit:cover;"/>
-        <div>
-            <h1>💕 Our Adventure Together</h1>
-            <p style="font-size: 1.2rem; margin-top: 0.5rem;">Dec 17, 2025 - Jan 1, 2026 • 16 magical days</p>
-        </div>
+        <h1>💕 Our Adventure Together</h1>
+        <p style="font-size: 1.2rem; margin-top: 0.5rem;">Dec 17, 2025 - Jan 1, 2026 • 16 magical days</p>
     </div>
     """, unsafe_allow_html=True)
     
