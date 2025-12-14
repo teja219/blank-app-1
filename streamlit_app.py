@@ -197,7 +197,7 @@ def get_or_create_sheet(client, spreadsheet_name="Travel Planner Dec 2025"):
     except gspread.WorksheetNotFound:
         worksheet = spreadsheet.add_worksheet(title="Plans", rows=1000, cols=10)
         # Add headers
-        headers = ['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Budget', 'Notes', 'Priority', 'Created']
+        headers = ['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created']
         worksheet.append_row(headers)
     
     return worksheet
@@ -210,10 +210,10 @@ def load_data(worksheet):
             df = pd.DataFrame(data)
             df['Date'] = pd.to_datetime(df['Date']).dt.date
             return df
-        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Budget', 'Notes', 'Priority', 'Created'])
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created'])
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Budget', 'Notes', 'Priority', 'Created'])
+        return pd.DataFrame(columns=['ID', 'Title', 'Date', 'Time', 'Location', 'Category', 'Notes', 'Priority', 'Created'])
 
 def add_trip(worksheet, trip_data):
     """Add new trip to Google Sheets"""
@@ -303,9 +303,9 @@ def main():
     # Load data
     df = load_data(worksheet)
     
-    # Stats
-    col1, col2, col3, col4 = st.columns(4)
-    
+    # Stats (compact)
+    col1, col2, col3 = st.columns(3)
+
     with col1:
         st.markdown(f"""
         <div class="stat-card">
@@ -315,15 +315,6 @@ def main():
         """, unsafe_allow_html=True)
     
     with col2:
-        total_budget = df['Budget'].astype(float).sum() if len(df) > 0 else 0
-        st.markdown(f"""
-        <div class="stat-card">
-            <h2 style="color: #8b5cf6; margin: 0;">💰 ${total_budget:.2f}</h2>
-            <p style="margin: 0.5rem 0 0 0; color: #6b7280;">Total Budget</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
         days = (TRIP_END - TRIP_START).days + 1
         st.markdown(f"""
         <div class="stat-card">
@@ -332,7 +323,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    with col4:
+    with col3:
         days_planned = len(df['Date'].unique()) if len(df) > 0 else 0
         st.markdown(f"""
         <div class="stat-card">
@@ -381,14 +372,13 @@ def main():
                     if trip.get('Notes'):
                         note_html = f"<p style='margin: 0.5rem 0 0 0; color: #4b5563; font-style: italic;'>{trip['Notes']}</p>"
                     location_html = f" | 📍 {trip['Location']}" if trip.get('Location') else ''
-                    budget_html = f" | 💵 ${trip['Budget']}" if trip.get('Budget') else ''
 
                     col_main, col_action = st.columns([10, 1])
                     with col_main:
                         html = (
                             f"<div class=\"trip-card\" style=\"border-left-color: {cat['color']};\">"
                             f"<h3 style=\"margin: 0 0 0.25rem 0; color: #1f2937;\">{cat['emoji']} {trip['Title']}</h3>"
-                            f"<p style=\"margin: 0; color: #6b7280;\">🕐 {trip['Time']}{location_html}{budget_html}</p>"
+                            f"<p style=\"margin: 0; color: #6b7280;\">🕐 {trip['Time']}{location_html}</p>"
                             f"{note_html}"
                             f"</div>"
                         )
@@ -423,12 +413,11 @@ def main():
                 
                 with col1:
                     location_html = f" | 📍 {trip['Location']}" if trip.get('Location') else ''
-                    budget_html = f" | 💵 ${trip['Budget']}" if trip.get('Budget') else ''
                     note_html = f"<p style='margin: 0.5rem 0 0 0; color: #4b5563; font-style: italic;'>{trip['Notes']}</p>" if trip.get('Notes') else ''
                     html = (
                         f"<div class=\"trip-card\" style=\"border-left-color: {cat['color']};\">"
                         f"<h3 style=\"margin: 0 0 0.5rem 0; color: #1f2937;\">{cat['emoji']} {trip['Title']}</h3>"
-                        f"<p style=\"margin: 0.25rem 0; color: #6b7280;\">📅 {trip['Date'].strftime('%b %d, %Y')} | 🕐 {trip['Time']}{location_html}{budget_html}</p>"
+                        f"<p style=\"margin: 0.25rem 0; color: #6b7280;\">📅 {trip['Date'].strftime('%b %d, %Y')} | 🕐 {trip['Time']}{location_html}</p>"
                         f"{note_html}"
                         f"</div>"
                     )
@@ -459,7 +448,6 @@ def main():
             
             with col2:
                 category = st.selectbox("Category *", options=list(CATEGORIES.keys()))
-                budget = st.number_input("Budget ($)", min_value=0.0, step=10.0, format="%.2f")
                 priority = st.selectbox("Priority", options=["Low", "Medium", "High"], index=1)
                 notes = st.text_area("Notes", placeholder="Special details or reminders...")
             
@@ -475,7 +463,6 @@ def main():
                         time.strftime("%H:%M"),
                         location,
                         category,
-                        budget,
                         notes,
                         priority,
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -514,7 +501,6 @@ def main():
                     
                     with col2:
                         edit_category = st.selectbox("Category *", options=list(CATEGORIES.keys()), index=list(CATEGORIES.keys()).index(trip['Category']))
-                        edit_budget = st.number_input("Budget ($)", value=float(trip['Budget']), min_value=0.0, step=10.0, format="%.2f")
                         edit_priority = st.selectbox("Priority", options=["Low", "Medium", "High"], index=["Low", "Medium", "High"].index(trip['Priority']))
                         edit_notes = st.text_area("Notes", value=trip['Notes'])
                     
@@ -528,7 +514,6 @@ def main():
                             edit_time.strftime("%H:%M"),
                             edit_location,
                             edit_category,
-                            edit_budget,
                             edit_notes,
                             edit_priority,
                             trip['Created']
