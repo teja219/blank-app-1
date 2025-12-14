@@ -119,6 +119,35 @@ SCOPES = [
     'https://www.googleapis.com/auth/drive'
 ]
 
+
+def _sanitize_value(value):
+    """Convert common pandas/numpy types to native JSON-serializable Python types."""
+    if value is None:
+        return ""
+    try:
+        # pandas NA handling
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+
+    # datetime/date formatting
+    try:
+        if hasattr(value, 'strftime'):
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        pass
+
+    # Try integer, then float, else fallback to string
+    try:
+        return int(value)
+    except Exception:
+        try:
+            return float(value)
+        except Exception:
+            return str(value)
+
+
 def connect_to_gsheet():
     """Connect to Google Sheets using service account credentials"""
     try:
@@ -189,7 +218,9 @@ def load_data(worksheet):
 def add_trip(worksheet, trip_data):
     """Add new trip to Google Sheets"""
     try:
-        worksheet.append_row(trip_data)
+        # sanitize values to native Python types (avoid numpy/pandas types)
+        safe_row = [_sanitize_value(v) for v in trip_data]
+        worksheet.append_row(safe_row)
         return True
     except Exception as e:
         st.error(f"Error adding trip: {e}")
@@ -200,7 +231,8 @@ def update_trip(worksheet, row_num, trip_data):
     try:
         # row_num is 1-indexed, +1 for header
         for i, value in enumerate(trip_data):
-            worksheet.update_cell(row_num + 2, i + 1, value)
+            v = _sanitize_value(value)
+            worksheet.update_cell(row_num + 2, i + 1, v)
         return True
     except Exception as e:
         st.error(f"Error updating trip: {e}")
@@ -222,7 +254,8 @@ CATEGORIES = {
     'Café': {'color': '#d97706', 'emoji': '☕'},
     'Travel': {'color': '#8b5cf6', 'emoji': '✈️'},
     'Stay': {'color': '#10b981', 'emoji': '🏠'},
-    'Special': {'color': '#ec4899', 'emoji': '💕'}
+    'Special': {'color': '#ec4899', 'emoji': '💕'},
+    'Shopping': {'color': '#f59e0b', 'emoji': '🛍️'}
 }
 
 # Trip dates
